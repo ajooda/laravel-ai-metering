@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    if: github.event.release.prerelease == false
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, curl, libxml
+
+      - name: Validate Composer
+        run: composer validate --strict
+
+      - name: Verify package structure
+        run: |
+          test -d src || (echo "src directory missing" && exit 1)
+          test -f composer.json || (echo "composer.json missing" && exit 1)
+          test -f README.md || (echo "README.md missing" && exit 1)
+
+      - name: Check for syntax errors
+        run: find src -name "*.php" -exec php -l {} \;
+
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Create distribution archive
+        run: |
+          mkdir -p dist
+          tar -czf dist/package.tar.gz \
+            --exclude='.git' \
+            --exclude='dist' \
+            --exclude='vendor' \
+            --exclude='.phpunit.cache' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='phpunit.xml' \
+            --exclude='.php-cs-fixer.php' \
+            --exclude='pint.json' \
+            .
+
+      - name: Create checksum
+        run: |
+          cd dist
+          sha256sum package.tar.gz > package.tar.gz.sha256
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: package-${{ github.event.release.tag_name }}
+          path: dist/package.tar.gz
+          retention-days: 90
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: checksum-${{ github.event.release.tag_name }}
+          path: dist/package.tar.gz.sha256
+          retention-days: 90
+
