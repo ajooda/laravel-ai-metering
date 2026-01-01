@@ -64,14 +64,14 @@ jobs:
           sha256sum package.tar.gz > package.tar.gz.sha256
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: package-${{ github.event.release.tag_name }}
           path: dist/package.tar.gz
           retention-days: 90
 
       - name: Upload checksum artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: checksum-${{ github.event.release.tag_name }}
           path: dist/package.tar.gz.sha256
